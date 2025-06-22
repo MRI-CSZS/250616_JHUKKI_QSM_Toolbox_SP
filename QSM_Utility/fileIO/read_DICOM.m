@@ -168,13 +168,16 @@ for ii = 1:length(filelist)
         continue;
     end
 
-    if info.SliceLocation<minSlice                  % find lowest slice
-        minSlice = info.SliceLocation;              % in mm
-        minLoc = info.ImagePositionPatient;
-    end
-    if info.SliceLocation>maxSlice                  % find highest slice
-        maxSlice = info.SliceLocation;
-        maxLoc = info.ImagePositionPatient;
+    % 检查是否存在 info.SliceLocation
+    if isfield(info, 'SliceLocation')
+        if info.SliceLocation < minSlice                  % 找到最低的切片位置
+            minSlice = info.SliceLocation;                % 单位：mm
+            minLoc = info.ImagePositionPatient;
+        end
+        if info.SliceLocation > maxSlice                  % 找到最高的切片位置
+            maxSlice = info.SliceLocation;                % 单位：mm
+            maxLoc = info.ImagePositionPatient;
+        end
     end
     
     if isfield(info, tagEchoNumber) && (info.(tagEchoNumber)>NumEcho) % in case multi-echo

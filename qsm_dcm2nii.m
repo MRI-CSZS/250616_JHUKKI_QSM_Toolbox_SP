@@ -1,4 +1,4 @@
-function GRE_preparation_2nifti(dcm, output_dir, cleanup)
+function qsm_dcm2nii(dcm, output_dir, cleanup)
 % function GRE_preparation_2nifti(dcm, output_dir, cleanup)
 % 
 % preparation for multi-echo GRE data, convert from DICOM file/folder to NIFTI using dcm2niix  

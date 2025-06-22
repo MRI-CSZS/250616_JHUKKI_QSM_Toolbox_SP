@@ -21,6 +21,14 @@ function [GREMag, GREPhase, Params, handles] = readerwrapper(PathName, FileName,
 
 [~,FileBaseName,FileExt] = fileparts(FileName);
 
+if(sum(strcmpi(FileExt,{'.DIC';'.IMA';'.DICOM'; '.dcm'; '.1'; ''})) > 0) && ~(strcmpi(FileBaseName, 'method'))
+    dicomheader = dicominfo([PathName FileName]);
+    if (isfield (dicomheader, 'PerFrameFunctionalGroupsSequence')) && (contains(dicomheader.Manufacturer, 'SIEMENS', 'IgnoreCase', true))
+        qsm_dcm2nii(PathName);
+        nii=1;
+    end
+end
+
 if(strcmpi(FileExt,'.par'))
     %% If GRE data in Rec Format
     GREdataAll  = readrec_V4_4([PathName FileName], 1);  
@@ -61,7 +69,7 @@ if(strcmpi(FileExt,'.par'))
 
     Params.datatype     = 'ParRec';
 
-elseif(sum(strcmpi(FileExt,{'.DIC';'.IMA';'.DICOM'; '.dcm'; '.1'; ''})) > 0) && ~(strcmpi(FileBaseName, 'method'))
+elseif(sum(strcmpi(FileExt,{'.DIC';'.IMA';'.DICOM'; '.dcm'; '.1'; ''})) > 0) && ~(strcmpi(FileBaseName, 'method')) && ~(contains(dicomheader.Manufacturer, 'SIEMENS', 'IgnoreCase', true))
     % check whether conventional/enhanced dicom
     disp('reading dicom info ...');
     dicomheader = dicominfo([PathName FileName]);
@@ -265,18 +273,23 @@ elseif (strcmpi(FileExt,'.mat'))
         Params.datatype = S.Params.datatype;
     end
 
-elseif (strcmpi(FileExt,'.gz') || strcmpi(FileExt, '.nii'))
+elseif (strcmpi(FileExt,'.gz') || strcmpi(FileExt, '.nii')) || nii
     
     % nifti file of magnitude/phase pair
     % read other Params from the correspoinding .mat file
     % which is extracted from json files, assume NIFTI is in default RAS system
+    if nii
+        nii_list = dir(fullfile(PathName, '*_phase.nii.gz'));            % magnitude echo 1
 
-    if contains(FileBaseName, '_GRE_mag')
-        FileBaseName = extractBefore(FileBaseName, '_GRE_mag');
-    elseif contains(FileBaseName, '_GRE_phase')
-        FileBaseName = extractBefore(FileBaseName, '_GRE_phase');
+        FileBaseName = extractBefore(nii_list(1).name, '_GRE_phase.nii.gz');     % prefix without "_" now
     else
-        error('Wrong naming convention.')
+        if contains(FileBaseName, '_GRE_mag')
+            FileBaseName = extractBefore(FileBaseName, '_GRE_mag');
+        elseif contains(FileBaseName, '_GRE_phase')
+            FileBaseName = extractBefore(FileBaseName, '_GRE_phase');
+        else
+            error('Wrong naming convention.')
+        end
     end
 
     nii_mag = load_untouch_nii([PathName FileBaseName, '_GRE_mag.nii.gz']);

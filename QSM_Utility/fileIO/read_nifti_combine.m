@@ -31,7 +31,7 @@ if ~iscell(nifti_dirs)
     nifti_dirs = {nifti_dirs};
 end
 
-%% echo combination
+%% echo combinatio
 for nifti_ii = 1:length(nifti_dirs)
 
     nifti_dir = nifti_dirs{nifti_ii};
@@ -43,13 +43,77 @@ for nifti_ii = 1:length(nifti_dirs)
 
     if length(json_test) > 1
         % if with multi-echoes
+      
+        
         json_list = dir(fullfile(nifti_dir, '*_e1.json'));            % magnitude echo 1
-        filename_prefix_mag = extractBefore(json_list(1).name, '_e1.json');     % prefix without "_" now
+        if ~isempty(json_list) %% philisps data
+            filename_prefix_mag = extractBefore(json_list(1).name, '_e1.json');     % prefix without "_" now
+        else %% SIEMENS data
+            json_list_ph = dir(fullfile(nifti_dir, '*_e*_ph.json'));
+            echotimes=zeros(1,length(json_list_ph));
+            for i = 1:length(json_list_ph)
+                echotimes(i) = extractNumberFromFilename(json_list_ph(i));
+                % fprintf('文件 "%s" 中的数字: %f\n', filenames{i}, num);
+            end
+            [~, idx] = sort(echotimes);
+            echotimes_sorted = echotimes(idx);
+            json_list_ph_sorted = json_list_ph(idx);
+
+            % 重命名文件
+            fprintf('开始重命名文件...\n');
+            % 获取文件夹中的所有文件
+            files = dir(nifti_dir);
+            % 存储结果
+            results = [];
+
+            for i = 1:length(files)
+                fileName = files(i).name;
+                
+                % 跳过目录
+                if files(i).isdir
+                    continue;
+                end
+                
+                % 使用正则表达式提取文件名中的 echotime 数值
+                pattern = 'e(\d+\.?\d*)';
+                tokens = regexp(fileName, pattern, 'tokens');
+                
+                if ~isempty(tokens)
+                    echotime_str = tokens{1}{1};
+                    echotime_value = str2double(echotime_str);
+                    
+                    % 查找匹配的索引
+                    [found, index] = ismember(echotime_value, echotimes_sorted);
+                    
+                    if found
+                        % 构造新的文件名，将 echotime 替换为索引
+                        newFileName = regexprep(fileName, pattern, ['e' num2str(index)]);
+                        
+                        filename_prefix = extractBefore(json_list_ph(1).name, '_(MSV21)_'); 
+                        filename_postfix = extractAfter(newFileName, ['e' num2str(index)]);
+                        newFileName=[filename_prefix '_e' num2str(index)  filename_postfix];
+                        % 重命名文件
+                        oldFilePath = fullfile(nifti_dir, fileName);
+                        newFilePath = fullfile(nifti_dir, newFileName);
+                        movefile(oldFilePath, newFilePath);
+                        
+                        fprintf('已重命名: %s -> %s (索引: %d)\n', fileName, newFileName, index);
+                        
+                        % 存储结果
+                        results = [results; struct('originalName', fileName, 'newName', newFileName, 'echotime', echotime_value, 'index', index)];
+                    else
+                        fprintf('文件: %s, Echotime: %.2f, 在 echotimes_sorted 中未找到匹配\n', fileName, echotime_value);
+                    end
+                end
+            end
+            
+            
+        end
     
         json_list_ph = dir(fullfile(nifti_dir, '*_e*_ph.json')); 
         num_echo = length(json_list_ph);
         filename_prefix_phase = extractBefore(json_list_ph(1).name, '_e1_ph.json');     % prefix without "_" now
-
+        filename_prefix_mag=filename_prefix_phase;
     elseif length(json_test) == 1
         % if with single-echo OR with eDICOM data
         num_echo = 1;
@@ -198,4 +262,40 @@ for nifti_ii = 1:length(nifti_dirs)
 
     end
 
+    end
+end
+
+
+function echo_time = extractNumberFromFilename(filename)
+    % 提取 e 和 .json 之间的数字（处理可能的 '_ph' 后缀）
+    pattern = 'e(\d+(?:\.\d+)?)(?:_ph)?\.json';
+    tokens = regexp(filename.name, pattern, 'tokens');
+    
+    if ~isempty(tokens)
+        echo_time = str2double(tokens{1}{1});
+    else
+        echo_time = NaN;  % 未找到匹配时返回 NaN
+    end
+end
+
+function newFilename = replaceNumberInFilename(filename, newNumber)
+    % 将文件名中的数字替换为新数字
+    % 例如: Axial_3D_e6.71_ph.json → Axial_3D_e1_ph.json
+    
+    % 找到 e 和 .json 的位置
+    eIdx = strfind(filename.name, 'e');
+    jsonIdx = strfind(filename.name, '.json');
+    
+    if ~isempty(eIdx) && ~isempty(jsonIdx) && eIdx < jsonIdx
+        % 提取 e 之前和 .json 之后的部分
+        prefix = filename.name(1:eIdx);
+        suffix = filename.name(jsonIdx:end);
+        
+        % 构建新文件名
+        newFilename = [prefix, num2str(newNumber), suffix];
+    else
+        % 如果无法处理，保持原文件名
+        newFilename = filename;
+        warning('无法处理文件名: %s', filename);
+    end
 end
