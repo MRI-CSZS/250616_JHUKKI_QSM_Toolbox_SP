@@ -98,17 +98,28 @@ else
                     [~, wslpwd] = system('wsl pwd');  % with \n at end
                     fname1_wsl = [wslpwd(1:end-1), '/', fname1];
                     wslsetenv = 'export FSLOUTPUTTYPE=NIFTI_GZ; ';
-                    inputstring1 = ['wsl ', wslsetenv, Params.FSLFolder, 'bet2 ', fname1_wsl, ' ', fname1_wsl, '_brain', ' -f ', Params.FSLThreshold, ' -g 0 -m' ];
+                    inputstring1 = ['wsl bash -lc "', wslsetenv, Params.FSLFolder, 'bet2 ', fname1_wsl, ' ', fname1_wsl, '_brain', ' -f ', Params.FSLThreshold, ' -g 0 -m"' ];
                 end
+
+                % % Additional optional BET Flag
+                % if isfield(handles.Params, 'FSLBETAdditionalFlag')
+                %     inputstring1 = [inputstring1, ' ', handles.Params.FSLBETAdditionalFlag];
+                % end
 
                 % Additional optional BET Flag
                 if isfield(handles.Params, 'FSLBETAdditionalFlag')
-                    inputstring1 = [inputstring1, ' ', handles.Params.FSLBETAdditionalFlag];
+                    if ispc
+                        % For WSL, need to add flag inside quotes
+                        inputstring1 = strrep(inputstring1, '"', [' ', handles.Params.FSLBETAdditionalFlag, '"']);
+                    else
+                        inputstring1 = [inputstring1, ' ', handles.Params.FSLBETAdditionalFlag];
+                    end
                 end
                 
                 if ~isfield(handles.Params, 'cluster')  % GUI only
                     multiWaitbar( textWaitbar, 0.2 );
                 end
+
 
                 system(inputstring1);
             else

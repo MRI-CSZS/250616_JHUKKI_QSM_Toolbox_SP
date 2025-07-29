@@ -107,6 +107,8 @@ catch
     % Other cases
     if contains(info.ManufacturerModelName, 'Skyra', 'IgnoreCase', true)
         Manufacturer = 1;
+    elseif contains(info.Private_0019_10xx_Creator, 'SIEMENS', 'IgnoreCase', true)
+        Manufacturer = 1;
     else
         error('Unknown Manufacturer ... ')
     end
